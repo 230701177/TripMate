@@ -10,6 +10,10 @@ jobs:
   build:
     runs-on: ubuntu-latest
 
+    defaults:
+      run:
+        working-directory: android
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -20,26 +24,23 @@ jobs:
           distribution: temurin
           java-version: 17
 
-      - name: List files (debug)
-        run: ls -R
-
       - name: Make gradlew executable
-        run: chmod +x ./gradlew
+        run: chmod +x gradlew
 
       - name: Build Debug APK
-        run: ./gradlew assembleDebug --stacktrace
+        run: ./gradlew assembleDebug
 
       - name: Upload Debug APK
         uses: actions/upload-artifact@v4
         with:
           name: app-debug.apk
-          path: app/build/outputs/apk/debug/*.apk
+          path: android/app/build/outputs/apk/debug/*.apk
 
       - name: Build Release APK
-        run: ./gradlew assembleRelease --stacktrace
+        run: ./gradlew assembleRelease
 
       - name: Upload Release APK
         uses: actions/upload-artifact@v4
         with:
           name: app-release.apk
-          path: app/build/outputs/apk/release/*.apk
+          path: android/app/build/outputs/apk/release/*.apk
