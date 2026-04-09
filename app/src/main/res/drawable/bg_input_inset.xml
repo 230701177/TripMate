@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Inset styling to mimic pressed claymorphism (inner shadow) -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Base Fill -->
+    <item>
+        <shape android:shape="rectangle">
+            <gradient
+                android:angle="270"
+                android:startColor="@color/surface_low_bottom"
+                android:endColor="@color/surface_low_top" />
+            <corners android:radius="@dimen/corner_radius" />
+        </shape>
+    </item>
+
+    <!-- Inner dark edge (top-left pressed) -->
+    <item android:bottom="0dp" android:right="0dp">
+        <shape android:shape="rectangle">
+            <stroke android:width="2dp" android:color="#2A0C1A24" />
+            <corners android:radius="@dimen/corner_radius" />
+        </shape>
+    </item>
+
+    <!-- Secondary inner dark -->
+    <item android:bottom="1dp" android:right="1dp">
+        <shape android:shape="rectangle">
+            <stroke android:width="1dp" android:color="#280C1A24" />
+            <corners android:radius="@dimen/corner_radius" />
+        </shape>
+    </item>
+    
+    <!-- Bottom-right relief highlight -->
+    <item android:top="2dp" android:left="2dp">
+        <shape android:shape="rectangle">
+            <stroke android:width="2dp" android:color="#C0FFFFFF" />
+            <corners android:radius="@dimen/corner_radius" />
+        </shape>
+    </item>
+</layer-list>

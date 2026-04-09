@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Strong bottom-right shadow -->
+    <item android:top="10dp" android:left="10dp" android:bottom="0dp" android:right="0dp">
+        <shape android:shape="oval">
+            <solid android:color="@color/shadow_deep" />
+        </shape>
+    </item>
+    <item android:top="7dp" android:left="7dp" android:bottom="2dp" android:right="2dp">
+        <shape android:shape="oval">
+            <solid android:color="#52E25B55" />
+        </shape>
+    </item>
+
+    <!-- Top-left highlight -->
+    <item android:bottom="10dp" android:right="10dp" android:top="0dp" android:left="0dp">
+        <shape android:shape="oval">
+            <solid android:color="@color/shadow_light" />
+        </shape>
+    </item>
+
+    <!-- Main surface -->
+    <item android:bottom="4dp" android:right="4dp" android:top="2dp" android:left="2dp">
+        <shape android:shape="oval">
+            <gradient
+                android:angle="270"
+                android:startColor="#FF7A74"
+                android:endColor="@color/colorAccent" />
+        </shape>
+    </item>
+
+    <!-- Inner gloss -->
+    <item android:bottom="6dp" android:right="6dp" android:top="2dp" android:left="2dp">
+        <shape android:shape="oval">
+            <stroke android:width="2dp" android:color="#4DFFFFFF" />
+        </shape>
+    </item>
+</layer-list>

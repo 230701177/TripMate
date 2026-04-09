@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginVertical="@dimen/spacing_small">
+
+    <com.google.android.material.card.MaterialCardView
+        android:id="@+id/tripCard"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        app:cardBackgroundColor="@color/colorSurface"
+        app:cardCornerRadius="@dimen/corner_radius"
+        app:cardElevation="@dimen/card_elevation"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:padding="@dimen/spacing_medium"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/tvTripTitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Trip Title"
+                android:textAppearance="@style/TextAppearance.TripMate.Heading"/>
+
+            <TextView
+                android:id="@+id/tvTripDestination"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Destination"
+                android:layout_marginTop="@dimen/spacing_small"
+                android:textColor="@color/colorPrimary"
+                android:textAppearance="@style/TextAppearance.TripMate.Body.Strong"/>
+
+            <TextView
+                android:id="@+id/tvTripDates"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Dates"
+                android:layout_marginTop="@dimen/spacing_tiny"
+                android:textColor="@color/colorTextHint"
+                android:textAppearance="@style/TextAppearance.TripMate.Body"/>
+            
+            <!-- Budget (optional) -->
+            <TextView
+                android:id="@+id/tvTripBudget"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/spacing_tiny"
+                android:text="Budget: —"
+                android:textColor="@color/colorPrimary"
+                android:textAppearance="@style/TextAppearance.TripMate.Body" />
+        </LinearLayout>
+    </com.google.android.material.card.MaterialCardView>
+</androidx.constraintlayout.widget.ConstraintLayout>

@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Core palette (dark) -->
+    <color name="colorPrimary">#6DD3B5</color>
+    <color name="colorSecondary">#FFB997</color>
+    <color name="colorAccent">#FF6B6B</color>
+
+    <!-- Surfaces + text -->
+    <color name="colorBackground">#121212</color>
+    <color name="colorSurface">#1E1E1E</color>
+    <color name="colorSurfaceElevated">#242424</color>
+    <color name="colorText">#EAEAEA</color>
+    <color name="colorTextHint">#A0A0A0</color>
+    <color name="colorOutline">#353535</color>
+
+    <!-- Legacy aliases kept for compatibility -->
+    <color name="surface_top">#242424</color>
+    <color name="surface_bottom">#1E1E1E</color>
+    <color name="surface_high_top">#2A2A2A</color>
+    <color name="surface_high_bottom">#242424</color>
+    <color name="surface_low_top">#1E1E1E</color>
+    <color name="surface_low_bottom">#1A1A1A</color>
+
+    <!-- Utilities -->
+    <color name="white">#FFFFFF</color>
+    <color name="black">#000000</color>
+    <color name="transparent">#00000000</color>
+
+    <!-- Kept for older drawables still in use on other screens -->
+    <color name="shadow_light">#1AFFFFFF</color>
+    <color name="shadow_dark">#66000000</color>
+    <color name="shadow_deep">#88000000</color>
+    <color name="card_tint">#146DD3B5</color>
+    <color name="header_gradient_top">#2A2A2A</color>
+    <color name="header_gradient_bottom">#1E1E1E</color>
+</resources>
