@@ -9,6 +9,7 @@ import com.tripmate.app.network.SupabaseRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 
 object MockDataProvider {
     val trips = mutableStateListOf<Trip>()
@@ -21,13 +22,15 @@ object MockDataProvider {
     val travelMemories = mutableStateListOf<TravelMemory>()
 
     var isDarkMode by mutableStateOf(true)
+    var activeNotification by mutableStateOf<String?>(null)
+    var isErrorNotification by mutableStateOf(false)
 
     var currentUser by mutableStateOf(
         UserProfile(
-            id = "u1",
-            name = "Demo User",
-            status = "Premium Traveler",
-            email = "demo@tripmate.com",
+            id = "guest",
+            name = "Guest Traveler",
+            status = "Please Login",
+            email = "",
             tripsCount = 0,
             countriesCount = 0,
             budgetSpent = "₹0"
@@ -39,72 +42,86 @@ object MockDataProvider {
     // Mock Data Definitions
     private val mockTrips = listOf(
         Trip(
-            "t1",
-            "Goa Trip",
-            "Oct 10-15, 2026",
-            15000.0,
-            "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1200&q=80",
-            "GOA123"
+            id = "t1",
+            title = "Goa Trip",
+            destination = "Goa",
+            date = "Oct 10-15, 2026",
+            budget = 15000.0,
+            imageUrl = "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1200&q=80",
+            inviteCode = "GOA123"
         ),
         Trip(
-            "t2",
-            "Munnar Hills Escape",
-            "Dec 1-5, 2026",
-            22000.0,
-            "https://images.unsplash.com/photo-1472396961693-142e6e269027?auto=format&fit=crop&w=1200&q=80",
-            "MUNNAR"
+            id = "t2",
+            title = "Munnar Hills Escape",
+            destination = "Munnar",
+            date = "Dec 1-5, 2026",
+            budget = 22000.0,
+            imageUrl = "https://images.unsplash.com/photo-1472396961693-142e6e269027?auto=format&fit=crop&w=1200&q=80",
+            inviteCode = "MUNNAR"
         ),
         Trip(
-            "t3",
-            "Chennai Weekend Trip",
-            "Jan 10-12, 2026",
-            8000.0,
-            "https://images.unsplash.com/photo-1529253355930-ddbe423a2ac7?auto=format&fit=crop&w=1200&q=80",
-            "CHENNAI"
+            id = "t3",
+            title = "Chennai Weekend Trip",
+            destination = "Chennai",
+            date = "Jan 10-12, 2026",
+            budget = 8000.0,
+            imageUrl = "https://images.unsplash.com/photo-1529253355930-ddbe423a2ac7?auto=format&fit=crop&w=1200&q=80",
+            inviteCode = "CHENNAI"
         )
     )
 
     private val mockCompletedTrips = listOf(
         Trip(
-            "c1",
-            "Goa Beach Escape",
-            "Completed: Sep 18-22, 2025",
-            18000.0,
-            "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1200&q=80",
-            "GOA-DONE"
+            id = "c1",
+            title = "Goa Beach Escape",
+            destination = "Goa",
+            date = "Completed: Sep 18-22, 2025",
+            budget = 18000.0,
+            imageUrl = "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1200&q=80",
+            inviteCode = "GOA-DONE"
         ),
         Trip(
-            "c2",
-            "Jaipur Royal Tour",
-            "Completed: Feb 3-7, 2025",
-            21000.0,
-            "https://images.unsplash.com/photo-1599661046289-e31897846e41?auto=format&fit=crop&w=1200&q=80",
-            "JAIPUR-DONE"
+            id = "c2",
+            title = "Jaipur Royal Tour",
+            destination = "Jaipur",
+            date = "Completed: Feb 3-7, 2025",
+            budget = 21000.0,
+            imageUrl = "https://images.unsplash.com/photo-1599661046289-e31897846e41?auto=format&fit=crop&w=1200&q=80",
+            inviteCode = "JAIPUR-DONE"
         ),
         Trip(
-            "c3",
-            "Chennai Heritage Walk",
-            "Completed: Jan 2-4, 2025",
-            9000.0,
-            "https://images.unsplash.com/photo-1556155092-490a1ba16284?auto=format&fit=crop&w=1200&q=80",
-            "CHENNAI-DONE"
+            id = "c3",
+            title = "Chennai Heritage Walk",
+            destination = "Chennai",
+            date = "Completed: Jan 2-4, 2025",
+            budget = 9000.0,
+            imageUrl = "https://images.unsplash.com/photo-1556155092-490a1ba16284?auto=format&fit=crop&w=1200&q=80",
+            inviteCode = "CHENNAI-DONE"
         )
     )
 
     private val mockExpenses = listOf(
-        Expense("e1", "t1", "Food", 500.0, System.currentTimeMillis()),
-        Expense("e2", "t1", "Travel", 1200.0, System.currentTimeMillis()),
-        Expense("e3", "t1", "Hotel", 3000.0, System.currentTimeMillis())
+        Expense("e1", "t1", "Beach Shacks", 2500.0, "Rahul"),
+        Expense("e2", "t1", "Scooter Rental", 1500.0, "Rahul"),
+        Expense("e3", "t1", "Water Sports", 5000.0, "Me"),
+        Expense("e4", "t2", "Hotel Stay", 12000.0, "Me"),
+        Expense("e5", "t2", "Tea Garden Entry", 2000.0, "Amit")
     )
 
     private val mockTasks = listOf(
-        Task("tk1", "t1", "Pack clothes", false),
-        Task("tk2", "t1", "Book tickets", true),
-        Task("tk3", "t1", "Carry ID proof", false),
-        Task("tk4", "t1", "Plan itinerary", true)
+        Task("c1", "t1", "Pack Swimwear", true),
+        Task("c2", "t1", "Sunscreen", false),
+        Task("c3", "t1", "First Aid Kit", true),
+        Task("c4", "t2", "Woolen Sweater", true),
+        Task("c5", "t2", "Hiking Boots", false)
     )
 
     private val mockEvents = listOf(
+        Event("v1", "t1", "Arrive at Calangute", "10 Oct", "11:00 AM"),
+        Event("v2", "t1", "Sunset at Anjuna", "11 Oct", "06:30 PM"),
+        Event("v3", "t1", "Scuba Diving", "12 Oct", "08:00 AM"),
+        Event("v4", "t2", "Tea Plantation Walk", "1 Dec", "09:00 AM"),
+        Event("v5", "t2", "Echo Point Visit", "2 Dec", "04:00 PM"),
         Event("ev1", "t1", "Beach visit", "Oct 11", "10:00 AM"),
         Event("ev2", "t1", "Hotel check-in", "Oct 10", "2:00 PM"),
         Event("ev3", "t1", "Local sightseeing", "Oct 12", "9:00 AM")
@@ -117,16 +134,16 @@ object MockDataProvider {
     )
 
     private val mockNotifications = listOf(
-        Notification("Trip created successfully", "trip", System.currentTimeMillis(), "t1"),
-        Notification("Expense added", "expense", System.currentTimeMillis(), "t1"),
-        Notification("Task completed", "task", System.currentTimeMillis(), "t1"),
-        Notification("New member joined", "member", System.currentTimeMillis(), "t1")
+        Notification("n1", "t1", "Trip created successfully", "trip", System.currentTimeMillis().toString()),
+        Notification("n2", "t1", "Expense added", "expense", System.currentTimeMillis().toString()),
+        Notification("n3", "t1", "Task completed", "task", System.currentTimeMillis().toString()),
+        Notification("n4", "t1", "New member joined", "member", System.currentTimeMillis().toString())
     )
 
     private val mockMemories = listOf(
-        TravelMemory("tm1", "Goa", "Oct 2024", "Goa sunset photo"),
-        TravelMemory("tm2", "Manali", "Dec 2024", "Manali mountain view"),
-        TravelMemory("tm3", "Chennai", "Jan 2025", "Chennai street food trip")
+        TravelMemory("tm1", "u1", "t1", "Goa Trip", "Goa sunset photo", "Goa", "", "Oct 2024"),
+        TravelMemory("tm2", "u1", "t2", "Manali Escape", "Manali mountain view", "Manali", "", "Dec 2024"),
+        TravelMemory("tm3", "u1", "t3", "Chennai Visit", "Chennai street food trip", "Chennai", "", "Jan 2025")
     )
 
     init {
@@ -147,21 +164,35 @@ object MockDataProvider {
             completedTrips.clear()
             completedTrips.addAll(mockCompletedTrips)
 
+            // Load Expenses, Tasks, Events
+            expenses.clear()
+            expenses.addAll(mockExpenses)
+
+            tasks.clear()
+            tasks.addAll(mockTasks)
+
+            events.clear()
+            events.addAll(mockEvents)
+
             // Load Profile
-            val remoteProfile = SupabaseRepository.getUserProfile("u1")
-            if (remoteProfile == null) {
-                currentUser = UserProfile(
-                    id = "u1",
-                    name = "Demo User",
-                    status = "Travel Enthusiast",
-                    email = "demo@tripmate.com",
-                    tripsCount = completedTrips.size,
-                    countriesCount = 3,
-                    budgetSpent = "₹4700",
-                    profileImage = null
-                )
-            } else {
-                currentUser = remoteProfile.copy(tripsCount = completedTrips.size)
+            val currentUserId = SupabaseRepository.getCurrentUserId()
+            if (currentUserId != null) {
+                val remoteProfile = SupabaseRepository.getUserProfile(currentUserId)
+                if (remoteProfile != null) {
+                    currentUser = remoteProfile.copy(tripsCount = completedTrips.size)
+                } else {
+                    // Fallback or create profile logic
+                    currentUser = UserProfile(
+                        id = currentUserId,
+                        name = "New User",
+                        status = "Travel Enthusiast",
+                        email = "user@tripmate.com",
+                        tripsCount = completedTrips.size,
+                        countriesCount = 0,
+                        budgetSpent = "₹0",
+                        profileImage = null
+                    )
+                }
             }
 
             // Load Memories
@@ -192,8 +223,8 @@ object MockDataProvider {
             val remoteExpenses = SupabaseRepository.getExpenses(tripId)
             expenses.clear()
             if (remoteExpenses.isEmpty()) {
-                val matchingExpenses = mockExpenses.filter { it.tripId == tripId }
-                expenses.addAll(matchingExpenses.ifEmpty { mockExpenses.map { it.copy(id = it.id + "x", tripId = tripId) } })
+                val matchingExpenses = mockExpenses.filter { e -> e.tripId == tripId }
+                expenses.addAll(matchingExpenses.ifEmpty { mockExpenses.map { e -> e.copy(id = e.id + "x", tripId = tripId) } })
             } else {
                 expenses.addAll(remoteExpenses)
             }
@@ -201,8 +232,8 @@ object MockDataProvider {
             val remoteTasks = SupabaseRepository.getTasks(tripId)
             tasks.clear()
             if (remoteTasks.isEmpty()) {
-                val matchingTasks = mockTasks.filter { it.tripId == tripId }
-                tasks.addAll(matchingTasks.ifEmpty { mockTasks.map { it.copy(id = it.id + "x", tripId = tripId) } })
+                val matchingTasks = mockTasks.filter { t -> t.tripId == tripId }
+                tasks.addAll(matchingTasks.ifEmpty { mockTasks.map { t -> t.copy(id = t.id + "x", tripId = tripId) } })
             } else {
                 tasks.addAll(remoteTasks)
             }
@@ -210,8 +241,8 @@ object MockDataProvider {
             val remoteEvents = SupabaseRepository.getEvents(tripId)
             events.clear()
             if (remoteEvents.isEmpty()) {
-                val matchingEvents = mockEvents.filter { it.tripId == tripId }
-                events.addAll(matchingEvents.ifEmpty { mockEvents.map { it.copy(id = it.id + "x", tripId = tripId) } })
+                val matchingEvents = mockEvents.filter { v -> v.tripId == tripId }
+                events.addAll(matchingEvents.ifEmpty { mockEvents.map { v -> v.copy(id = v.id + "x", tripId = tripId) } })
             } else {
                 events.addAll(remoteEvents)
             }
@@ -266,7 +297,12 @@ object MockDataProvider {
     }
 
     fun addNotification(message: String, type: String) {
-        val notif = Notification(message = message, type = type, timestamp = System.currentTimeMillis())
+        val notif = Notification(
+            id = System.currentTimeMillis().toString(),
+            message = message,
+            type = type,
+            timestamp = System.currentTimeMillis().toString()
+        )
         notifications.add(0, notif)
         scope.launch {
             SupabaseRepository.insertNotification(notif)
@@ -284,6 +320,17 @@ object MockDataProvider {
         travelMemories.add(0, memory)
         scope.launch {
             SupabaseRepository.insertMemory(memory)
+        }
+    }
+
+    fun showMessage(message: String, isError: Boolean = false) {
+        scope.launch {
+            activeNotification = message
+            isErrorNotification = isError
+            delay(3000)
+            if (activeNotification == message) {
+                activeNotification = null
+            }
         }
     }
 }

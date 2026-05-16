@@ -41,16 +41,24 @@ fun NavGraph(navController: NavHostController) {
         navController = navController,
         startDestination = Screen.Splash.route,
         enterTransition = {
-            slideInHorizontally(initialOffsetX = { 1000 }, animationSpec = tween(500)) + fadeIn(animationSpec = tween(500))
+            fadeIn(animationSpec = tween(400)) + 
+            slideInHorizontally(initialOffsetX = { it / 3 }, animationSpec = tween(400)) +
+            scaleIn(initialScale = 0.95f, animationSpec = tween(400))
         },
         exitTransition = {
-            slideOutHorizontally(targetOffsetX = { -1000 }, animationSpec = tween(500)) + fadeOut(animationSpec = tween(500))
+            fadeOut(animationSpec = tween(400)) + 
+            slideOutHorizontally(targetOffsetX = { -it / 10 }, animationSpec = tween(400)) +
+            scaleOut(targetScale = 0.95f, animationSpec = tween(400))
         },
         popEnterTransition = {
-            slideInHorizontally(initialOffsetX = { -1000 }, animationSpec = tween(500)) + fadeIn(animationSpec = tween(500))
+            fadeIn(animationSpec = tween(400)) + 
+            slideInHorizontally(initialOffsetX = { -it / 10 }, animationSpec = tween(400)) +
+            scaleIn(initialScale = 0.95f, animationSpec = tween(400))
         },
         popExitTransition = {
-            slideOutHorizontally(targetOffsetX = { 1000 }, animationSpec = tween(500)) + fadeOut(animationSpec = tween(500))
+            fadeOut(animationSpec = tween(400)) + 
+            slideOutHorizontally(targetOffsetX = { it / 3 }, animationSpec = tween(400)) +
+            scaleOut(targetScale = 0.95f, animationSpec = tween(400))
         }
     ) {
         composable(Screen.Splash.route) { SplashScreen(navController) }

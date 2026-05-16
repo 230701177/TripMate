@@ -53,8 +53,25 @@ fun SplashScreen(navController: NavController) {
     LaunchedEffect(key1 = true) {
         startAnimation = true
         delay(1500)
-        navController.navigate(Screen.Login.route) {
-            popUpTo(Screen.Splash.route) { inclusive = true }
+        
+        // Check for existing session
+        val currentUserId = com.tripmate.app.network.SupabaseRepository.getCurrentUserId()
+        if (currentUserId != null) {
+            val profile = com.tripmate.app.network.SupabaseRepository.getUserProfile(currentUserId)
+            if (profile != null) {
+                com.tripmate.app.data.MockDataProvider.currentUser = profile
+                navController.navigate(Screen.Home.route) {
+                    popUpTo(Screen.Splash.route) { inclusive = true }
+                }
+            } else {
+                navController.navigate(Screen.Login.route) {
+                    popUpTo(Screen.Splash.route) { inclusive = true }
+                }
+            }
+        } else {
+            navController.navigate(Screen.Login.route) {
+                popUpTo(Screen.Splash.route) { inclusive = true }
+            }
         }
     }
 
@@ -85,7 +102,7 @@ fun SplashScreen(navController: NavController) {
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                "Your Journey, Optimized",
+                "Plan Together. Travel Smarter.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = Color.White.copy(alpha = 0.7f),
                 modifier = Modifier.graphicsLayer(alpha = alphaAnim)
@@ -97,7 +114,7 @@ fun SplashScreen(navController: NavController) {
 @Composable
 fun LoginScreen(navController: NavController) {
     var email by remember { mutableStateOf("admin@gmail.com") }
-    var password by remember { mutableStateOf("12345") }
+    var password by remember { mutableStateOf("123456") }
     var isLoading by remember { mutableStateOf(false) }
     val scrollState = rememberScrollState()
     val scope = rememberCoroutineScope()
@@ -189,29 +206,13 @@ fun LoginScreen(navController: NavController) {
                                                     popUpTo(Screen.Login.route) { inclusive = true }
                                                 }
                                             } else {
-                                                if (email == "admin@gmail.com" && password == "12345") {
-                                                    com.tripmate.app.data.MockDataProvider.currentUser = com.tripmate.app.models.UserProfile(
-                                                        id = "admin-local",
-                                                        name = "Admin User",
-                                                        status = "Administrator",
-                                                        email = email,
-                                                        tripsCount = 0,
-                                                        countriesCount = 0,
-                                                        budgetSpent = "₹0",
-                                                        profileImage = null
-                                                    )
-                                                    navController.navigate(Screen.Home.route) {
-                                                        popUpTo(Screen.Login.route) { inclusive = true }
-                                                    }
-                                                } else {
-                                                    android.widget.Toast.makeText(navController.context, "Login failed: Profile not found", android.widget.Toast.LENGTH_LONG).show()
-                                                }
+                                                com.tripmate.app.data.MockDataProvider.showMessage("Login failed: Profile not found", isError = true)
                                             }
                                         } else {
-                                            android.widget.Toast.makeText(navController.context, "Login failed: ${loginResult.exceptionOrNull()?.message}", android.widget.Toast.LENGTH_LONG).show()
+                                            com.tripmate.app.data.MockDataProvider.showMessage("Login failed: ${loginResult.exceptionOrNull()?.message}", isError = true)
                                         }
                                     } catch (e: Exception) {
-                                        android.widget.Toast.makeText(navController.context, "Login failed: ${e.message}", android.widget.Toast.LENGTH_LONG).show()
+                                        com.tripmate.app.data.MockDataProvider.showMessage("Login failed: ${e.message}", isError = true)
                                     } finally {
                                         isLoading = false
                                     }
@@ -328,21 +329,29 @@ fun SignupScreen(navController: NavController) {
                                         try {
                                             val signUpResult = com.tripmate.app.network.SupabaseRepository.registerUser(email, password, name)
                                             if (signUpResult.isSuccess) {
-                                                android.widget.Toast.makeText(navController.context, "Signup successful! You can now login.", android.widget.Toast.LENGTH_LONG).show()
-                                                navController.popBackStack()
+                                                val userId = signUpResult.getOrNull()!!
+                                                val profile = com.tripmate.app.network.SupabaseRepository.getUserProfile(userId)
+                                                if (profile != null) {
+                                                    com.tripmate.app.data.MockDataProvider.currentUser = profile
+                                                    navController.navigate(Screen.Home.route) {
+                                                        popUpTo(Screen.Login.route) { inclusive = true }
+                                                    }
+                                                } else {
+                                                    navController.navigate(Screen.Home.route) {
+                                                        popUpTo(Screen.Login.route) { inclusive = true }
+                                                    }
+                                                }
                                             } else {
-                                                snackbarHostState.showSnackbar("Signup failed: ${signUpResult.exceptionOrNull()?.message}")
+                                                com.tripmate.app.data.MockDataProvider.showMessage("Signup failed: ${signUpResult.exceptionOrNull()?.message}", isError = true)
                                             }
                                         } catch (e: Exception) {
-                                            snackbarHostState.showSnackbar("Signup failed: ${e.message}")
+                                            com.tripmate.app.data.MockDataProvider.showMessage("Signup failed: ${e.message}", isError = true)
                                         } finally {
                                             isLoading = false
                                         }
                                     }
                                 } else {
-                                    scope.launch {
-                                        snackbarHostState.showSnackbar("Please fill all fields and agree to terms")
-                                    }
+                                    com.tripmate.app.data.MockDataProvider.showMessage("Please fill all fields and agree to terms", isError = true)
                                 }
                             },
                             modifier = Modifier.fillMaxWidth(),

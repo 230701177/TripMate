@@ -83,45 +83,22 @@ fun ExploreScreen(navController: NavController) {
     val locationPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
-        if (permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true) {
+        if (permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true || permissions[Manifest.permission.ACCESS_COARSE_LOCATION] == true) {
             scope.launch {
-                val location = getLastLocation(context)
+                val location = getCurrentLocation(context)
                 userLocation = location
                 if (location != null) {
-                    fetchCityAndGems(location, mapsService) { city, gems ->
+                    fetchCityAndGems(context, location, mapsService) { city, gems ->
                         currentCity = city
                         nearbyGems = gems
                     }
-                } else {
-                    currentCity = "Chennai"
-                    fetchGemsForCity("Chennai", mapsService) { gems -> nearbyGems = gems }
                 }
             }
         }
     }
 
     LaunchedEffect(Unit) {
-        if (ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
-            android.util.Log.d("ExploreScreen", "Permission granted, fetching location...")
-            val location = getLastLocation(context)
-            userLocation = location
-            if (location != null) {
-                android.util.Log.d("ExploreScreen", "Location found: ${location.latitude}, ${location.longitude}")
-                fetchCityAndGems(location, mapsService) { city, gems ->
-                    currentCity = city
-                    nearbyGems = gems
-                }
-            } else {
-                android.util.Log.w("ExploreScreen", "Location is null, using default city")
-                currentCity = "Chennai" // Default fallback
-                fetchGemsForCity("Chennai", mapsService) { gems ->
-                    nearbyGems = gems
-                }
-            }
-        } else {
-            android.util.Log.d("ExploreScreen", "Requesting permissions...")
-            locationPermissionLauncher.launch(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION))
-        }
+        // We wait for the user to click the button to request location
     }
 
     Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface)) {
@@ -200,29 +177,42 @@ fun ExploreScreen(navController: NavController) {
                 )
             )
 
-            Spacer(modifier = Modifier.height(32.dp))
+            val isSearching = searchQuery.isNotBlank()
+            
+            // 1. Trending Section (Filtered)
+            data class TrendingItem(val name: String, val image: String, val days: String, val locations: String, val cost: String, val costLocal: String, val currency: String)
+            val trending = listOf(
+                TrendingItem("Bali", "https://images.unsplash.com/photo-1537996194471-e657df975ab4", "7", "12", "₹66,000", "IDR 12M", "IDR"),
+                TrendingItem("Kyoto", "https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e", "5", "8", "₹99,000", "JPY 180K", "JPY"),
+                TrendingItem("Rome", "https://images.unsplash.com/photo-1552832230-c0197dd311b5", "6", "15", "₹1,08,000", "EUR 1,200", "EUR")
+            ).filter { !isSearching || it.name.contains(searchQuery, ignoreCase = true) }
 
-            SectionHeader("Trending Now")
-            LazyRow(
-                contentPadding = PaddingValues(horizontal = 24.dp),
-                horizontalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                val trending = listOf(
-                    Pair("Bali", "https://images.unsplash.com/photo-1537996194471-e657df975ab4"),
-                    Pair("Kyoto", "https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e"),
-                    Pair("Rome", "https://images.unsplash.com/photo-1552832230-c0197dd311b5")
-                ).filter { searchQuery.isBlank() || it.first.contains(searchQuery, ignoreCase = true) }
-
-                items(trending) { pair ->
-                    TrendingCard(pair.first, pair.second) {
-                        selectedGem = GemPlace(pair.first, "Popular destination", pair.second, 0.0, 0.0)
-                        showGemSheet = true
+            if (trending.isNotEmpty()) {
+                SectionHeader(if (isSearching) "Search Results in Trending" else "Trending Now")
+                LazyRow(
+                    contentPadding = PaddingValues(horizontal = 24.dp),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    items(trending) { item ->
+                        TrendingCard(item.name, item.image, item.days, item.locations, item.cost) {
+                            selectedGem = GemPlace(
+                                item.name, 
+                                "A breathtaking journey through ${item.name}. Experience the culture, local food, and hidden spots with this curated premium package.", 
+                                item.image, 0.0, 0.0,
+                                days = item.days,
+                                areas = item.locations,
+                                costINR = item.cost,
+                                costLocal = item.costLocal,
+                                currencyCode = item.currency
+                            )
+                            showGemSheet = true
+                        }
                     }
                 }
+                Spacer(modifier = Modifier.height(32.dp))
             }
 
-            Spacer(modifier = Modifier.height(32.dp))
-
+            // 2. Categories Section
             SectionHeader("Travel Categories")
             LazyRow(
                 contentPadding = PaddingValues(horizontal = 24.dp),
@@ -239,14 +229,13 @@ fun ExploreScreen(navController: NavController) {
                             else -> Icons.Default.Restaurant
                         },
                         label = cat,
+                        selected = selectedCategory == cat,
                         onClick = {
-                            val ctx = context
                             selectedCategory = if (selectedCategory == cat) null else cat
                             searchQuery = selectedCategory ?: ""
-                            // insert some mock gems for this category in realtime
                             val mocks = generateGemsForCategory(cat)
                             nearbyGems = mocks
-                            Toast.makeText(ctx, "Loaded ${mocks.size} ${cat} places", Toast.LENGTH_SHORT).show()
+                            com.tripmate.app.data.MockDataProvider.showMessage("Loaded ${mocks.size} $cat places")
                         }
                     )
                 }
@@ -254,72 +243,86 @@ fun ExploreScreen(navController: NavController) {
 
             Spacer(modifier = Modifier.height(32.dp))
 
-            SectionHeader("Hidden Gems Near You")
+            // 3. Hidden Gems Section (Filtered)
+            val filteredGems = nearbyGems.filter { !isSearching || it.name.contains(searchQuery, ignoreCase = true) }
+            
+            SectionHeader(if (isSearching) "Local Results" else "Hidden Gems Near You")
             Surface(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 24.dp)
-                    .clickable {
+                    .clickable(enabled = !isLoading) {
                         isLoading = true
                         scope.launch {
-                            if (userLocation != null) {
-                                fetchCityAndGems(userLocation!!, mapsService) { city, gems ->
+                            // 1. Check Permission
+                            val hasFineLocation = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+                            val hasCoarseLocation = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
+                            
+                            if (!hasFineLocation && !hasCoarseLocation) {
+                                com.tripmate.app.data.MockDataProvider.showMessage("Requesting Location Permission...")
+                                locationPermissionLauncher.launch(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION))
+                                isLoading = false
+                                return@launch
+                            }
+
+                            // 2. Fetch Accurate Location
+                            com.tripmate.app.data.MockDataProvider.showMessage("Searching for precise location...")
+                            val location = getCurrentLocation(context)
+                            userLocation = location
+                            
+                            if (location != null) {
+                                fetchCityAndGems(context, location, mapsService) { city, gems ->
                                     currentCity = city
                                     nearbyGems = gems
                                     isLoading = false
+                                    com.tripmate.app.data.MockDataProvider.showMessage("Success! Discovered gems in $city")
                                 }
                             } else {
-                                fetchGemsForCity("Chennai", mapsService) { gems ->
-                                    currentCity = "Chennai"
-                                    nearbyGems = gems
-                                    isLoading = false
-                                }
+                                isLoading = false
+                                com.tripmate.app.data.MockDataProvider.showMessage("Failed to get accurate location. Try again.")
+                                // Fallback if user insists
+                                if (currentCity == "Locating...") currentCity = "Chennai"
                             }
                         }
                     },
                 shape = RoundedCornerShape(28.dp),
                 color = MaterialTheme.colorScheme.primaryContainer,
-                shadowElevation = 4.dp
+                shadowElevation = 2.dp
             ) {
                 Row(
                     modifier = Modifier.padding(24.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .size(56.dp)
-                            .background(MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.1f), CircleShape),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        if (isLoading) {
-                            CircularProgressIndicator(modifier = Modifier.size(24.dp), color = MaterialTheme.colorScheme.onPrimaryContainer)
-                        } else {
-                            Icon(
-                                Icons.Default.AutoAwesome, 
-                                null, 
-                                modifier = Modifier.size(28.dp),
-                                tint = MaterialTheme.colorScheme.onPrimaryContainer
-                            )
-                        }
+                    if (isLoading) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(32.dp), 
+                            color = MaterialTheme.colorScheme.onPrimaryContainer, 
+                            strokeWidth = 3.dp
+                        )
+                    } else {
+                        Icon(
+                            Icons.Default.MyLocation, 
+                            null, 
+                            modifier = Modifier.size(32.dp), 
+                            tint = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
                     }
                     Spacer(Modifier.width(20.dp))
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            if (currentCity == "Locating...") "Scanning $currentCity" else "Find Gems in $currentCity",
+                            if (isLoading) "Detecting Location..." else if (currentCity == "Locating...") "Find Gems Near You" else "Gems in $currentCity",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onPrimaryContainer
                         )
                         Text(
-                            "AI-powered local recommendations",
+                            if (isLoading) "Fetching precise coordinates..." else "AI-powered real-time recommendations",
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+                            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
                         )
                     }
                 }
             }
-
-            val filteredGems = nearbyGems.filter { searchQuery.isBlank() || it.name.contains(searchQuery, ignoreCase = true) }
 
             if (filteredGems.isNotEmpty()) {
                 Spacer(modifier = Modifier.height(16.dp))
@@ -334,40 +337,49 @@ fun ExploreScreen(navController: NavController) {
                         }
                     }
                 }
+            } else if (isSearching && trending.isEmpty()) {
+                // No results state
+                Column(
+                    modifier = Modifier.fillMaxWidth().padding(40.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Icon(Icons.Default.SearchOff, null, modifier = Modifier.size(64.dp), tint = MaterialTheme.colorScheme.secondary.copy(alpha = 0.3f))
+                    Spacer(Modifier.height(16.dp))
+                    Text("No places found for \"$searchQuery\"", color = MaterialTheme.colorScheme.secondary, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                    TextButton(onClick = { searchQuery = "" }) { Text("Clear Search") }
+                }
             }
 
             Spacer(modifier = Modifier.height(32.dp))
 
-            SectionHeader("Personalized for You")
-            Column(
-                modifier = Modifier.padding(horizontal = 24.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                SuggestionCard("Hike the Alps", "Based on your interest in mountains") {
-                    val trips = com.tripmate.app.data.MockDataProvider.trips
-                    if (trips.isNotEmpty()) {
-                        com.tripmate.app.data.MockDataProvider.addEvent(
-                            com.tripmate.app.models.Event(System.currentTimeMillis().toString(), trips.first().id, "Hike the Alps", "TBD", "TBD")
-                        )
-                    }
-                }
-                SuggestionCard("Sushi in Tokyo", "Recommended for foodies") {
-                    val trips = com.tripmate.app.data.MockDataProvider.trips
-                    if (trips.isNotEmpty()) {
-                        com.tripmate.app.data.MockDataProvider.addEvent(
-                            com.tripmate.app.models.Event(System.currentTimeMillis().toString(), trips.first().id, "Sushi in Tokyo", "TBD", "TBD")
-                        )
-                    }
-                }
-                SuggestionCard("Jazz in New Orleans", "Matches your music taste") {
-                    val trips = com.tripmate.app.data.MockDataProvider.trips
-                    if (trips.isNotEmpty()) {
-                        com.tripmate.app.data.MockDataProvider.addEvent(
-                            com.tripmate.app.models.Event(System.currentTimeMillis().toString(), trips.first().id, "Jazz in New Orleans", "TBD", "TBD")
-                        )
+            // 4. Personalized Section
+            val suggestions = listOf(
+                Triple("Hike the Alps", "Based on your interest in mountains", "Alps"),
+                Triple("Sushi in Tokyo", "Recommended for foodies", "Tokyo"),
+                Triple("Jazz in New Orleans", "Matches your music taste", "New Orleans")
+            ).filter { !isSearching || it.first.contains(searchQuery, ignoreCase = true) || it.third.contains(searchQuery, ignoreCase = true) }
+
+            if (suggestions.isNotEmpty()) {
+                SectionHeader("Personalized for You")
+                Column(
+                    modifier = Modifier.padding(horizontal = 24.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    suggestions.forEach { (title, subtitle, _) ->
+                        SuggestionCard(title, subtitle) {
+                            val trips = com.tripmate.app.data.MockDataProvider.trips
+                            if (trips.isNotEmpty()) {
+                                com.tripmate.app.data.MockDataProvider.addEvent(
+                                    com.tripmate.app.models.Event(System.currentTimeMillis().toString(), trips.first().id, title, "TBD", "TBD")
+                                )
+                                com.tripmate.app.data.MockDataProvider.showMessage("Added $title to your trip!")
+                            }
+                        }
                     }
                 }
             }
+            
+            Spacer(Modifier.height(120.dp))
         }
 
         if (showGemSheet && selectedGem != null) {
@@ -440,7 +452,74 @@ fun GemDetailContent(gem: GemPlace) {
                 Text("Add to Trip")
             }
         }
-        Spacer(modifier = Modifier.height(24.dp))
+        
+        if (gem.days != null) {
+            Spacer(modifier = Modifier.height(32.dp))
+            Text("TRAVEL INSIGHTS", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+            Spacer(modifier = Modifier.height(16.dp))
+            
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(24.dp),
+                color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
+            ) {
+                Column(modifier = Modifier.padding(20.dp)) {
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Column {
+                            Text("Duration", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.secondary)
+                            Text("${gem.days} Days", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                        }
+                        Column {
+                            Text("Locations", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.secondary)
+                            Text("${gem.areas} Spots", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                        }
+                        Column {
+                            Text("Best Time", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.secondary)
+                            Text("Nov - Mar", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                    
+                    Spacer(modifier = Modifier.height(20.dp))
+                    Divider(color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f))
+                    Spacer(modifier = Modifier.height(20.dp))
+                    
+                    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier
+                                .size(48.dp)
+                                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f), CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(Icons.Default.CurrencyExchange, null, tint = MaterialTheme.colorScheme.primary)
+                        }
+                        Spacer(modifier = Modifier.width(16.dp))
+                        Column {
+                            Text("Budget Conversion", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.secondary)
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(gem.costLocal ?: "", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                                Icon(Icons.Default.ArrowForward, null, modifier = Modifier.size(16.dp).padding(horizontal = 4.dp), tint = MaterialTheme.colorScheme.primary)
+                                Text(gem.costINR ?: "", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.ExtraBold, color = MaterialTheme.colorScheme.primary)
+                            }
+                        }
+                    }
+                    
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(16.dp),
+                        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.5f)
+                    ) {
+                        Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.AutoAwesome, null, modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.primary)
+                            Spacer(Modifier.width(8.dp))
+                            Text("TripMate AI: Optimized for 1 ${gem.currencyCode} = ₹${if (gem.name == "Bali") "0.0055" else if (gem.name == "Kyoto") "0.55" else "90"}", style = MaterialTheme.typography.labelSmall)
+                        }
+                    }
+                }
+            }
+        }
+        
+        Spacer(modifier = Modifier.height(40.dp))
     }
 
     if (showTripSelection) {
@@ -464,7 +543,7 @@ fun GemDetailContent(gem: GemPlace) {
                                         time = "TBD"
                                     )
                                     com.tripmate.app.data.MockDataProvider.addEvent(newEvent)
-                                    android.widget.Toast.makeText(context, "${gem.name} added to ${trip.destination}", android.widget.Toast.LENGTH_SHORT).show()
+                                    com.tripmate.app.data.MockDataProvider.showMessage("${gem.name} added to ${trip.destination}")
                                     showTripSelection = false 
                                 },
                                 modifier = Modifier.fillMaxWidth()
@@ -482,6 +561,7 @@ fun GemDetailContent(gem: GemPlace) {
 }
 
 private suspend fun fetchCityAndGems(
+    context: android.content.Context,
     location: Location, 
     service: GoogleMapsService,
     onResult: (String, List<GemPlace>) -> Unit
@@ -493,9 +573,30 @@ private suspend fun fetchCityAndGems(
             if (!geocodeRes.isSuccessful) {
                 android.util.Log.e("ExploreScreen", "Geocoding failed: ${geocodeRes.errorBody()?.string()}")
             }
-            val city = geocodeRes.body()?.results?.firstOrNull()?.addressComponents
-                ?.find { it.types.contains("locality") || it.types.contains("administrative_area_level_2") }
-                ?.longName ?: "Unknown City"
+            val results = geocodeRes.body()?.results ?: emptyList()
+            val firstResult = results.firstOrNull()
+            
+            // Try to find the most specific city/area name from Google Results
+            var city = firstResult?.addressComponents?.let { components ->
+                components.find { it.types.contains("sublocality_level_1") }?.longName
+                    ?: components.find { it.types.contains("locality") }?.longName
+                    ?: components.find { it.types.contains("administrative_area_level_2") }?.longName
+                    ?: components.find { it.types.contains("administrative_area_level_1") }?.longName
+            } ?: firstResult?.addressComponents?.firstOrNull()?.longName ?: "Unknown City"
+
+            // ULTIMATE FALLBACK: Use Android system Geocoder if Google API returned "Unknown"
+            if (city == "Unknown City") {
+                try {
+                    val geocoder = android.location.Geocoder(context, java.util.Locale.getDefault())
+                    val addresses = geocoder.getFromLocation(location.latitude, location.longitude, 1)
+                    val geoCity = addresses?.firstOrNull()?.let { addr ->
+                        addr.locality ?: addr.subAdminArea ?: addr.adminArea
+                    }
+                    if (geoCity != null) city = geoCity
+                } catch (e: Exception) {
+                    android.util.Log.e("ExploreScreen", "System Geocoder failed", e)
+                }
+            }
 
             android.util.Log.d("ExploreScreen", "City found: $city, fetching gems...")
             fetchGemsForCity(city, service) { gems ->
@@ -564,58 +665,100 @@ private fun getSimulatedAIPlaces(city: String): List<AIPlaceResponse> {
 }
 
 @SuppressLint("MissingPermission")
-private suspend fun getLastLocation(context: Context): Location? {
+private suspend fun getCurrentLocation(context: Context): Location? {
     val fusedLocationClient = LocationServices.getFusedLocationProviderClient(context)
     return try {
         withContext(Dispatchers.IO) {
-            com.google.android.gms.tasks.Tasks.await(fusedLocationClient.lastLocation)
+            // 1. Try to get a fresh accurate location
+            val location = com.google.android.gms.tasks.Tasks.await(
+                fusedLocationClient.getCurrentLocation(
+                    com.google.android.gms.location.Priority.PRIORITY_HIGH_ACCURACY,
+                    null
+                )
+            )
+            
+            // 2. Fallback to last known location if fresh location fails
+            location ?: com.google.android.gms.tasks.Tasks.await(fusedLocationClient.lastLocation)
         }
     } catch (e: Exception) {
+        android.util.Log.e("ExploreScreen", "Error getting current location", e)
         null
     }
 }
 
 @Composable
-fun TrendingCard(name: String, imageUrl: String, onClick: () -> Unit = {}) {
+fun TrendingCard(
+    name: String, 
+    imageUrl: String, 
+    days: String, 
+    locations: String, 
+    cost: String, 
+    onClick: () -> Unit = {}
+) {
     Card(
         modifier = Modifier
-            .size(170.dp, 240.dp)
+            .size(200.dp, 280.dp)
             .clickable { onClick() },
-        shape = RoundedCornerShape(24.dp),
+        shape = RoundedCornerShape(28.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
     ) {
         Box {
             AsyncImage(model = imageUrl, contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
-            Box(modifier = Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = 0.8f)))))
+            Box(modifier = Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = 0.9f)))))
+            
             Column(modifier = Modifier.align(Alignment.BottomStart).padding(16.dp)) {
-                Surface(color = Color.White.copy(alpha = 0.2f), shape = RoundedCornerShape(8.dp)) {
+                Surface(color = MaterialTheme.colorScheme.primary, shape = RoundedCornerShape(8.dp)) {
                     Text("Trending", modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp), style = MaterialTheme.typography.labelSmall, color = Color.White)
                 }
+                Spacer(Modifier.height(8.dp))
+                Text(name, color = Color.White, fontWeight = FontWeight.Black, style = MaterialTheme.typography.headlineSmall)
+                
+                Spacer(Modifier.height(8.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.Schedule, null, modifier = Modifier.size(12.dp), tint = Color.White.copy(alpha = 0.7f))
+                    Spacer(Modifier.width(4.dp))
+                    Text("$days Days", style = MaterialTheme.typography.labelSmall, color = Color.White.copy(alpha = 0.7f))
+                    Spacer(Modifier.width(12.dp))
+                    Icon(Icons.Default.Place, null, modifier = Modifier.size(12.dp), tint = Color.White.copy(alpha = 0.7f))
+                    Spacer(Modifier.width(4.dp))
+                    Text("$locations Areas", style = MaterialTheme.typography.labelSmall, color = Color.White.copy(alpha = 0.7f))
+                }
+                
                 Spacer(Modifier.height(4.dp))
-                Text(name, color = Color.White, fontWeight = FontWeight.Black, style = MaterialTheme.typography.titleLarge)
+                Text("From $cost", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primaryContainer, fontWeight = FontWeight.Bold)
             }
         }
     }
 }
 
 @Composable
-fun CategoryIcon(icon: ImageVector, label: String, onClick: () -> Unit = {}) {
+fun CategoryIcon(icon: ImageVector, label: String, selected: Boolean = false, onClick: () -> Unit = {}) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Surface(
             modifier = Modifier
                 .size(72.dp)
                 .clickable { onClick() },
             shape = RoundedCornerShape(22.dp),
-            color = MaterialTheme.colorScheme.surface,
-            shadowElevation = 4.dp,
+            color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface,
+            shadowElevation = if (selected) 8.dp else 4.dp,
             tonalElevation = 6.dp
         ) {
             Box(contentAlignment = Alignment.Center) {
-                Icon(icon, contentDescription = null, modifier = Modifier.size(32.dp), tint = MaterialTheme.colorScheme.primary)
+                Icon(
+                    icon, 
+                    contentDescription = null, 
+                    modifier = Modifier.size(32.dp), 
+                    tint = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.primary
+                )
             }
         }
         Spacer(Modifier.height(10.dp))
-        Text(label, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurface)
+        Text(
+            label, 
+            style = MaterialTheme.typography.labelMedium, 
+            fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium, 
+            color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+        )
     }
 }
 
@@ -661,7 +804,18 @@ fun SuggestionCard(title: String, subtitle: String, onAdd: () -> Unit = {}) {
     }
 }
 
-data class GemPlace(val name: String, val description: String, val imageUrl: String, val lat: Double, val lng: Double)
+data class GemPlace(
+    val name: String, 
+    val description: String, 
+    val imageUrl: String, 
+    val lat: Double, 
+    val lng: Double,
+    val days: String? = null,
+    val areas: String? = null,
+    val costLocal: String? = null,
+    val costINR: String? = null,
+    val currencyCode: String? = null
+)
 data class AIPlaceResponse(val name: String, val description: String)
 
 private fun generateGemsForCategory(category: String): List<GemPlace> {

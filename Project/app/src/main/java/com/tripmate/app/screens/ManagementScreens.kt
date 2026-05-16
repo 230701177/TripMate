@@ -125,7 +125,7 @@ fun ExpenseScreen(navController: NavController, tripId: String?) {
                         tripId = tripId ?: "",
                         title = title,
                         amount = amountStr.toDoubleOrNull() ?: 0.0,
-                        timestamp = System.currentTimeMillis()
+                        timestamp = System.currentTimeMillis().toString()
                     )
                 )
                 showAddDialog = false

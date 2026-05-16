@@ -67,7 +67,7 @@ fun TripDetailScreen(navController: NavController, tripId: String) {
                 modifier = Modifier
                     .clip(RoundedCornerShape(20.dp))
                     .background(Orange500.copy(alpha = 0.1f))
-                    .clickable { navController.navigate(Screen.Collaboration.route) }
+                    .clickable { navController.navigate(Screen.Collaboration.createRoute(tripId)) }
                     .padding(horizontal = 16.dp, vertical = 12.dp)
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -97,7 +97,15 @@ fun TripDetailScreen(navController: NavController, tripId: String) {
                     Icon(Icons.Default.Map, null, modifier = Modifier.size(40.dp), tint = Color.White.copy(alpha = 0.2f))
                 }
             }
-            Box(modifier = Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = 0.6f)))))
+            Box(modifier = Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = 0.9f)))))
+            Column(modifier = Modifier.align(Alignment.BottomStart).padding(24.dp)) {
+                Text(trip.title, style = MaterialTheme.typography.headlineMedium, color = Color.White, fontWeight = FontWeight.Black)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.LocationOn, null, tint = Orange500, modifier = Modifier.size(16.dp))
+                    Spacer(Modifier.width(4.dp))
+                    Text(trip.destination, style = MaterialTheme.typography.labelMedium, color = Color.White.copy(alpha = 0.7f))
+                }
+            }
         }
 
         Spacer(modifier = Modifier.height(32.dp))
@@ -127,38 +135,24 @@ fun TripDetailScreen(navController: NavController, tripId: String) {
 
                 Spacer(modifier = Modifier.height(32.dp))
 
-                // Progress & Health Score (Innovation)
-                Row(
+                // Progress (Innovation)
+                Surface(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                    shape = RoundedCornerShape(24.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
                 ) {
-                    Surface(
-                        modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(24.dp),
-                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-                    ) {
-                        Column(modifier = Modifier.padding(16.dp)) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                             Text("Trip Completion", style = MaterialTheme.typography.labelSmall)
-                            Spacer(Modifier.height(8.dp))
-                            LinearProgressIndicator(
-                                progress = 0.65f,
-                                modifier = Modifier.fillMaxWidth().height(8.dp).clip(RoundedCornerShape(4.dp))
-                            )
-                            Spacer(Modifier.height(4.dp))
-                            Text("65%", fontWeight = FontWeight.Bold)
+                            Text("65%", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
                         }
-                    }
-
-                    Surface(
-                        modifier = Modifier.weight(0.6f),
-                        shape = RoundedCornerShape(24.dp),
-                        color = MaterialTheme.colorScheme.primaryContainer,
-                        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.primary)
-                    ) {
-                        Column(modifier = Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text("Health Score", style = MaterialTheme.typography.labelSmall)
-                            Text("92", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Black)
-                        }
+                        Spacer(Modifier.height(12.dp))
+                        LinearProgressIndicator(
+                            progress = 0.65f,
+                            modifier = Modifier.fillMaxWidth().height(10.dp).clip(RoundedCornerShape(5.dp)),
+                            color = MaterialTheme.colorScheme.primary,
+                            trackColor = MaterialTheme.colorScheme.surfaceVariant
+                        )
                     }
                 }
 
@@ -187,34 +181,34 @@ fun TripDetailScreen(navController: NavController, tripId: String) {
         ToolboxButton("Checklist", "Preparation & packing", Icons.Default.CheckBox, Color(0xFF3B82F6)) { navController.navigate(Screen.Checklist.createRoute(tripId)) }
         Spacer(modifier = Modifier.height(16.dp))
         ToolboxButton("Itinerary", "Event & activity schedule", Icons.Default.Schedule, Color(0xFFA855F7)) { navController.navigate(Screen.Event.createRoute(tripId)) }
-        Spacer(modifier = Modifier.height(32.dp))
+        Spacer(modifier = Modifier.height(110.dp))
     }
 }
 
 @Composable
 fun ToolboxButton(title: String, subtitle: String, icon: ImageVector, color: Color, onClick: () -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(32.dp))
-            .background(Color(0xFF1D1D1D))
-            .clickable { onClick() }
-            .padding(24.dp),
-        verticalAlignment = Alignment.CenterVertically
+    Surface(
+        modifier = Modifier.fillMaxWidth().height(80.dp).clickable { onClick() },
+        shape = RoundedCornerShape(20.dp),
+        color = Color(0xFF1A1A1A),
+        border = androidx.compose.foundation.BorderStroke(1.dp, color.copy(alpha = 0.2f))
     ) {
-        Box(
-            modifier = Modifier
-                .size(56.dp)
-                .clip(RoundedCornerShape(16.dp))
-                .background(color.copy(alpha = 0.1f)),
-            contentAlignment = Alignment.Center
+        Row(
+            modifier = Modifier.padding(horizontal = 20.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(icon, null, tint = color, modifier = Modifier.size(28.dp))
-        }
-        Spacer(Modifier.width(20.dp))
-        Column {
-            Text(title, style = MaterialTheme.typography.titleLarge, color = Color.White)
-            Text(subtitle, style = MaterialTheme.typography.bodySmall, color = Color(0xFF71717A))
+            Box(
+                modifier = Modifier.size(44.dp).clip(RoundedCornerShape(12.dp)).background(color.copy(alpha = 0.1f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(icon, null, tint = color, modifier = Modifier.size(24.dp))
+            }
+            Spacer(Modifier.width(16.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = Color.White)
+                Text(subtitle, style = MaterialTheme.typography.labelSmall, color = Color.White.copy(alpha = 0.5f))
+            }
+            Icon(Icons.Default.ChevronRight, null, tint = Color.White.copy(alpha = 0.3f))
         }
     }
 }
@@ -290,7 +284,7 @@ fun ExpenseScreen(navController: NavController, tripId: String) {
                         tripId = tripId,
                         title = title,
                         amount = amount,
-                        timestamp = System.currentTimeMillis()
+                        timestamp = System.currentTimeMillis().toString()
                     )
                 )
                 showDialog = false
@@ -365,7 +359,7 @@ fun ChecklistScreen(navController: NavController, tripId: String) {
 
             LazyColumn(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 items(tasks) { task ->
-                    ChecklistItem(task) { MockDataProvider.tasks.find { it.id == task.id }?.let { it.completed = !it.completed } }
+                    ChecklistItem(task) { MockDataProvider.updateTask(task.copy(completed = !task.completed)) }
                 }
             }
         }
@@ -449,7 +443,20 @@ fun EventScreen(navController: NavController, tripId: String) {
             ) {
                 HeaderIconButton(Icons.Default.ArrowBack) { navController.popBackStack() }
                 Text("ITINERARY", style = MaterialTheme.typography.titleLarge, color = Color.White, fontWeight = FontWeight.Bold)
-                Spacer(Modifier.width(48.dp))
+                
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(Orange500.copy(alpha = 0.1f))
+                        .clickable { navController.navigate(Screen.Collaboration.createRoute(tripId)) }
+                        .padding(horizontal = 12.dp, vertical = 8.dp)
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.Groups, contentDescription = null, tint = Orange500, modifier = Modifier.size(16.dp))
+                        Spacer(Modifier.width(4.dp))
+                        Text("GROUP", style = MaterialTheme.typography.labelSmall, color = Orange500, fontWeight = FontWeight.Bold)
+                    }
+                }
             }
 
             // Banner

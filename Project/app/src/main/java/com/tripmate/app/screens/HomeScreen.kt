@@ -189,12 +189,12 @@ fun HomeScreen(navController: NavController) {
         Spacer(modifier = Modifier.height(32.dp))
 
         // Recent Activity
-        SectionHeader("Recent Activity")
         Column(modifier = Modifier.padding(horizontal = 24.dp)) {
             notifications.take(3).forEach { notif ->
                 ActivityRow(notif)
             }
         }
+        Spacer(modifier = Modifier.height(110.dp))
     }
 
     if (showSmartPlanner) {
@@ -202,9 +202,11 @@ fun HomeScreen(navController: NavController) {
             val tripId = System.currentTimeMillis().toString()
             val newTrip = Trip(
                 id = tripId,
+                title = dest,
                 destination = dest,
                 date = "July 2024",
                 budget = budget,
+                userId = com.tripmate.app.network.SupabaseRepository.getCurrentUserId() ?: "",
                 imageUrl = "https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?auto=format&fit=crop&w=800&q=80"
             )
             MockDataProvider.addTrip(newTrip)

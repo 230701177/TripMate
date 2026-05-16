@@ -3,6 +3,8 @@ package com.tripmate.app.network
 import com.tripmate.app.models.*
 import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.postgrest.query.Order
+import io.github.jan.supabase.gotrue.auth
+import io.github.jan.supabase.gotrue.providers.builtin.Email
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import android.util.Log
@@ -10,28 +12,23 @@ import android.util.Log
 object SupabaseRepository {
     private const val TAG = "SupabaseRepository"
 
-    // --- Authentication (Password Validation) ---
+    // --- Authentication (Real Supabase Auth) ---
     suspend fun validateLogin(email: String, password: String): Result<String> = withContext(Dispatchers.IO) {
-        try {
-            val passwordValid = when {
-                email == "admin@gmail.com" && password == "12345" -> true
-                // For other users, you can implement proper password hashing/validation
-                else -> false
-            }
+        // --- MOCK OVERRIDE FOR DEVELOPMENT ---
+        if (email == "admin@gmail.com" && password == "123456") {
+            Log.d(TAG, "Using mock admin login")
+            return@withContext Result.success("admin-user-id")
+        }
 
-            if (passwordValid) {
-                val profile = getUserProfileByEmail(email)
-                if (profile != null) {
-                    Log.d(TAG, "Login successful for $email")
-                    Result.success(profile.id)
-                } else {
-                    Log.w(TAG, "Default login accepted without remote profile for $email")
-                    Result.success("admin-local")
-                }
-            } else {
-                Log.d(TAG, "Invalid password for $email")
-                Result.failure(Exception("Invalid email or password"))
+        try {
+            supabase.auth.signInWith(Email) {
+                this.email = email
+                this.password = password
             }
+            
+            val userId = supabase.auth.currentUserOrNull()?.id ?: throw Exception("Login failed: User not found")
+            Log.d(TAG, "Login successful for $email, ID: $userId")
+            Result.success(userId)
         } catch (e: Exception) {
             Log.e(TAG, "Error during login", e)
             Result.failure(e)
@@ -40,14 +37,14 @@ object SupabaseRepository {
 
     suspend fun registerUser(email: String, password: String, name: String): Result<String> = withContext(Dispatchers.IO) {
         try {
-            // Check if user already exists
-            val existingProfile = getUserProfileByEmail(email)
-            if (existingProfile != null) {
-                return@withContext Result.failure(Exception("Email already registered"))
+            supabase.auth.signUpWith(Email) {
+                this.email = email
+                this.password = password
             }
             
-            // Create new user profile with password
-            val userId = java.util.UUID.randomUUID().toString()
+            val userId = supabase.auth.currentUserOrNull()?.id ?: throw Exception("Signup successful but session not created")
+            
+            // Create user profile in the public table
             val newProfile = UserProfile(
                 id = userId,
                 name = name,
@@ -60,7 +57,7 @@ object SupabaseRepository {
             )
             
             insertUserProfile(newProfile)
-            Log.d(TAG, "User registered successfully: $email")
+            Log.d(TAG, "User registered and profile created: $email")
             Result.success(userId)
         } catch (e: Exception) {
             Log.e(TAG, "Error during registration", e)
@@ -68,10 +65,27 @@ object SupabaseRepository {
         }
     }
 
+    suspend fun logout() = withContext(Dispatchers.IO) {
+        try {
+            supabase.auth.signOut()
+        } catch (e: Exception) {
+            Log.e(TAG, "Error during logout", e)
+        }
+    }
+
+    fun getCurrentUserId(): String? {
+        return supabase.auth.currentUserOrNull()?.id
+    }
+
     // --- Trips ---
     suspend fun getTrips(): List<Trip> = withContext(Dispatchers.IO) {
         try {
-            supabase.from("trips").select().decodeList<Trip>()
+            val userId = getCurrentUserId() ?: return@withContext emptyList()
+            supabase.from("trips").select {
+                filter {
+                    eq("user_id", userId)
+                }
+            }.decodeList<Trip>()
         } catch (e: Exception) {
             Log.e(TAG, "Error fetching trips", e)
             emptyList()
@@ -91,7 +105,7 @@ object SupabaseRepository {
         try {
             supabase.from("expenses").select {
                 filter {
-                    eq("tripId", tripId)
+                    eq("trip_id", tripId)
                 }
             }.decodeList<Expense>()
         } catch (e: Exception) {
@@ -111,9 +125,9 @@ object SupabaseRepository {
     // --- Tasks (Checklist) ---
     suspend fun getTasks(tripId: String): List<Task> = withContext(Dispatchers.IO) {
         try {
-            supabase.from("tasks").select {
+            supabase.from("checklist").select {
                 filter {
-                    eq("tripId", tripId)
+                    eq("trip_id", tripId)
                 }
             }.decodeList<Task>()
         } catch (e: Exception) {
@@ -124,7 +138,7 @@ object SupabaseRepository {
 
     suspend fun insertTask(task: Task) = withContext(Dispatchers.IO) {
         try {
-            supabase.from("tasks").insert(task)
+            supabase.from("checklist").insert(task)
         } catch (e: Exception) {
             Log.e(TAG, "Error inserting task", e)
         }
@@ -132,7 +146,7 @@ object SupabaseRepository {
 
     suspend fun updateTask(task: Task) = withContext(Dispatchers.IO) {
         try {
-            supabase.from("tasks").update(task) {
+            supabase.from("checklist").update(task) {
                 filter {
                     eq("id", task.id)
                 }
@@ -147,7 +161,7 @@ object SupabaseRepository {
         try {
             supabase.from("events").select {
                 filter {
-                    eq("tripId", tripId)
+                    eq("trip_id", tripId)
                 }
             }.decodeList<Event>()
         } catch (e: Exception) {
@@ -168,7 +182,7 @@ object SupabaseRepository {
     suspend fun getNotifications(): List<Notification> = withContext(Dispatchers.IO) {
         try {
             supabase.from("notifications").select {
-                order("timestamp", Order.DESCENDING)
+                order("created_at", Order.DESCENDING)
             }.decodeList<Notification>()
         } catch (e: Exception) {
             Log.e(TAG, "Error fetching notifications", e)
@@ -185,6 +199,19 @@ object SupabaseRepository {
     }
 
     suspend fun getUserProfile(userId: String): UserProfile? = withContext(Dispatchers.IO) {
+        if (userId == "admin-user-id") {
+            return@withContext UserProfile(
+                id = "admin-user-id",
+                name = "Admin Traveler",
+                status = "Expert Explorer",
+                email = "admin@gmail.com",
+                tripsCount = 12,
+                countriesCount = 5,
+                budgetSpent = "₹45,000",
+                profileImage = null
+            )
+        }
+
         try {
             supabase.from("user_profiles").select {
                 filter {
@@ -233,7 +260,12 @@ object SupabaseRepository {
     // --- Travel Memories ---
     suspend fun getTravelMemories(): List<TravelMemory> = withContext(Dispatchers.IO) {
         try {
-            supabase.from("travel_memories").select().decodeList<TravelMemory>()
+            val userId = getCurrentUserId() ?: return@withContext emptyList()
+            supabase.from("travel_memories").select {
+                filter {
+                    eq("user_id", userId)
+                }
+            }.decodeList<TravelMemory>()
         } catch (e: Exception) {
             Log.e(TAG, "Error fetching memories", e)
             emptyList()

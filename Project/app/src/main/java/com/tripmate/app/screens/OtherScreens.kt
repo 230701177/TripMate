@@ -35,6 +35,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
 import androidx.navigation.NavController
 import com.tripmate.app.data.MockDataProvider
 import com.tripmate.app.models.Member
@@ -87,7 +88,7 @@ fun CollaborationScreen(navController: NavController, tripId: String) {
                 val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                 val clip = ClipData.newPlainText("Trip Code", it)
                 clipboard.setPrimaryClip(clip)
-                Toast.makeText(context, "Code Copied!", Toast.LENGTH_SHORT).show()
+                com.tripmate.app.data.MockDataProvider.showMessage("Invite Code Copied!")
             }
 
             // 6. Shared Progress Section (Moved up for visibility)
@@ -415,48 +416,95 @@ fun QuickActionCard(title: String, icon: ImageVector, onClick: () -> Unit) {
 fun NotificationScreen(navController: NavController) {
     val notifications = MockDataProvider.notifications
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Notifications", fontWeight = FontWeight.Black) },
-                navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.Default.ArrowBack, null)
-                    }
-                }
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(
+                Brush.verticalGradient(
+                    listOf(
+                        MaterialTheme.colorScheme.primary,
+                        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.9f),
+                        MaterialTheme.colorScheme.surface
+                    )
+                )
             )
-        }
-    ) { padding ->
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding),
-            contentPadding = PaddingValues(24.dp)
-        ) {
-            itemsIndexed(notifications) { index, notif ->
-                AnimatedListItem(index) {
-                    Surface(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 4.dp),
-                        shape = RoundedCornerShape(16.dp),
-                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-                    ) {
-                        ListItem(
-                            headlineContent = { Text(notif.message) },
-                            supportingContent = { Text("Just now", style = MaterialTheme.typography.labelSmall) },
-                            leadingContent = {
-                                Icon(
-                                    when (notif.type) {
-                                        "trip" -> Icons.Default.Flight
-                                        "expense" -> Icons.Default.AccountBalanceWallet
-                                        else -> Icons.Default.Notifications
-                                    },
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary
-                                )
+    ) {
+        Scaffold(
+            containerColor = Color.Transparent,
+            topBar = {
+                TopAppBar(
+                    title = { Text("Notifications", fontWeight = FontWeight.Black, color = Color.White) },
+                    navigationIcon = {
+                        IconButton(onClick = { navController.popBackStack() }) {
+                            Icon(Icons.Default.ArrowBack, null, tint = Color.White)
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
+                )
+            }
+        ) { padding ->
+            Column(modifier = Modifier.padding(padding)) {
+                // Header accent
+                Text(
+                    "STAY UPDATED",
+                    modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = Color.White.copy(alpha = 0.7f),
+                    fontWeight = FontWeight.Bold
+                )
+                
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(bottom = 100.dp, start = 20.dp, end = 20.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    itemsIndexed(notifications) { index, notif ->
+                        AnimatedListItem(index) {
+                            Surface(
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(24.dp),
+                                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.95f),
+                                shadowElevation = 8.dp
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(20.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(52.dp)
+                                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f), RoundedCornerShape(16.dp)),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            when (notif.type) {
+                                                "trip" -> Icons.Default.Flight
+                                                "expense" -> Icons.Default.AccountBalanceWallet
+                                                else -> Icons.Default.Notifications
+                                            },
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.primary,
+                                            modifier = Modifier.size(24.dp)
+                                        )
+                                    }
+                                    Spacer(Modifier.width(20.dp))
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            notif.message, 
+                                            style = MaterialTheme.typography.bodyLarge, 
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.onSurface
+                                        )
+                                        Spacer(Modifier.height(4.dp))
+                                        Text(
+                                            "Just now", 
+                                            style = MaterialTheme.typography.labelSmall, 
+                                            color = MaterialTheme.colorScheme.secondary
+                                        )
+                                    }
+                                }
                             }
-                        )
+                        }
                     }
                 }
             }
@@ -567,7 +615,7 @@ fun ProfileScreen(navController: NavController) {
             } else {
                 Column(modifier = Modifier.fillMaxWidth()) {
                     memories.forEach { memory ->
-                        MemoryItem(memory.city, memory.date, memory.comment)
+                        MemoryItem(memory.location, memory.date, memory.description)
                     }
                 }
             }
@@ -597,9 +645,7 @@ fun ProfileScreen(navController: NavController) {
                 }
             }
 
-            ProfileMenu(title = "Cloud Tasks", icon = Icons.Default.Cloud) { 
-                navController.navigate(Screen.Todo.route)
-            }
+
             
             Spacer(Modifier.height(32.dp))
             
@@ -631,7 +677,15 @@ fun ProfileScreen(navController: NavController) {
         AddMemoryDialog(
             onDismiss = { showAddMemoryDialog = false },
             onSave = { city, date, comment ->
-                MockDataProvider.addMemory(com.tripmate.app.models.TravelMemory(System.currentTimeMillis().toString(), city, date, comment))
+                MockDataProvider.addMemory(
+                    com.tripmate.app.models.TravelMemory(
+                        id = System.currentTimeMillis().toString(),
+                        location = city,
+                        date = date,
+                        description = comment,
+                        userId = com.tripmate.app.network.SupabaseRepository.getCurrentUserId() ?: ""
+                    )
+                )
                 showAddMemoryDialog = false
             }
         )
@@ -717,6 +771,83 @@ fun AddMemoryDialog(onDismiss: () -> Unit, onSave: (String, String, String) -> U
     )
 }
 
+// Payment Methods Dialog with premium UI
+@Composable
+fun PaymentMethodsDialog(onDismiss: () -> Unit) {
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            shape = RoundedCornerShape(24.dp),
+            color = MaterialTheme.colorScheme.surface,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(24.dp)
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text(
+                    "Payment Methods",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(Modifier.height(12.dp))
+                Text(
+                    "UPI Options",
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.SemiBold
+                )
+                val upiOptions = listOf("Google Pay", "PhonePe", "Paytm", "BHIM UPI")
+                upiOptions.forEach { method ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { /* TODO: handle selection */ }
+                            .padding(vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.Default.AccountBalanceWallet, null, tint = MaterialTheme.colorScheme.primary)
+                        Spacer(Modifier.width(12.dp))
+                        Text(method)
+                    }
+                }
+                Spacer(Modifier.height(12.dp))
+                Text(
+                    "Card Options",
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.SemiBold
+                )
+                val cardOptions = listOf(
+                    "SBI Debit",
+                    "HDFC Debit",
+                    "ICICI Debit",
+                    "SBI Credit",
+                    "HDFC Credit",
+                    "ICICI Credit",
+                    "Tata NeuCred"
+                )
+                cardOptions.forEach { method ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { /* TODO: handle selection */ }
+                            .padding(vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.Default.CreditCard, null, tint = MaterialTheme.colorScheme.primary)
+                        Spacer(Modifier.width(12.dp))
+                        Text(method)
+                    }
+                }
+                Spacer(Modifier.height(16.dp))
+                Button(
+                    onClick = onDismiss,
+                    modifier = Modifier.align(Alignment.End)
+                ) {
+                    Text("Close")
+                }
+            }
+        }
+    }
+}
+
 @Composable
 fun ProfileMenu(title: String, icon: ImageVector, onClick: () -> Unit = {}) {
     Surface(
@@ -770,25 +901,7 @@ fun SecuritySettingsDialog(onDismiss: () -> Unit) {
     )
 }
 
-@Composable
-fun PaymentMethodsDialog(onDismiss: () -> Unit) {
-    var cardNumber by remember { mutableStateOf("") }
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Payment Methods") },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("Saved Cards")
-                Text("• Visa **** 4242")
-                Text("• Amex **** 0005")
-                Spacer(Modifier.height(8.dp))
-                OutlinedTextField(value = cardNumber, onValueChange = { cardNumber = it }, label = { Text("Add Card Number") })
-            }
-        },
-        confirmButton = { Button(onClick = onDismiss) { Text("Add") } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Close") } }
-    )
-}
+
 
 @Composable
 fun MemoryItem(city: String, date: String, comment: String) {
@@ -831,40 +944,96 @@ fun CommunityScreen(navController: NavController) {
                 .padding(padding)
                 .verticalScroll(rememberScrollState())
         ) {
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(24.dp))
 
-            // Banner
+            // Premium Gradient Banner
             Surface(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 24.dp),
-                shape = RoundedCornerShape(24.dp),
-                color = MaterialTheme.colorScheme.primaryContainer
+                shape = RoundedCornerShape(32.dp),
+                color = Color.Transparent
             ) {
-                Column(modifier = Modifier.padding(24.dp)) {
-                    Text("Collaborate & Explore", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Black, color = MaterialTheme.colorScheme.onPrimaryContainer)
-                    Spacer(Modifier.height(8.dp))
-                    Text("Plan trips together with friends and family in real-time.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f))
-                    Spacer(Modifier.height(16.dp))
-                    Button(
-                        onClick = { showJoinDialog = true },
-                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
-                    ) {
-                        Text("Join via Code")
+                Box(
+                    modifier = Modifier
+                        .background(
+                            Brush.verticalGradient(
+                                colors = listOf(
+                                    MaterialTheme.colorScheme.primary,
+                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.8f)
+                                )
+                            )
+                        )
+                        .padding(32.dp)
+                ) {
+                    Column {
+                        Icon(
+                            Icons.Default.Diversity3, 
+                            null, 
+                            tint = Color.White.copy(alpha = 0.6f),
+                            modifier = Modifier.size(48.dp)
+                        )
+                        Spacer(Modifier.height(16.dp))
+                        Text(
+                            "Collaborative Planning", 
+                            style = MaterialTheme.typography.headlineSmall, 
+                            fontWeight = FontWeight.Black, 
+                            color = Color.White
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        Text(
+                            "Invite friends and family to build the perfect itinerary together.", 
+                            style = MaterialTheme.typography.bodyMedium, 
+                            color = Color.White.copy(alpha = 0.8f)
+                        )
+                        Spacer(Modifier.height(24.dp))
+                        Button(
+                            onClick = { showJoinDialog = true },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Color.White,
+                                contentColor = MaterialTheme.colorScheme.primary
+                            ),
+                            shape = RoundedCornerShape(16.dp),
+                            elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp)
+                        ) {
+                            Text("Join with Code", fontWeight = FontWeight.Bold)
+                        }
                     }
                 }
             }
 
-            Spacer(Modifier.height(32.dp))
+            Spacer(Modifier.height(40.dp))
 
-            SectionHeader("Active Collaborations", modifier = Modifier.padding(horizontal = 0.dp))
+            Row(
+                modifier = Modifier.padding(horizontal = 24.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(Icons.Default.AutoAwesome, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    "Active Collaborations", 
+                    style = MaterialTheme.typography.titleMedium, 
+                    fontWeight = FontWeight.Black
+                )
+            }
+            
+            Spacer(Modifier.height(16.dp))
 
             if (trips.isEmpty()) {
-                Text(
-                    "You don't have any active trips.",
-                    modifier = Modifier.padding(horizontal = 24.dp),
-                    color = MaterialTheme.colorScheme.secondary
-                )
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(24.dp)
+                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f), RoundedCornerShape(24.dp))
+                        .padding(40.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(Icons.Default.SafetyDivider, null, modifier = Modifier.size(48.dp), tint = MaterialTheme.colorScheme.secondary.copy(alpha = 0.4f))
+                        Spacer(Modifier.height(16.dp))
+                        Text("No active group trips", color = MaterialTheme.colorScheme.secondary)
+                    }
+                }
             } else {
                 Column(modifier = Modifier.padding(horizontal = 24.dp)) {
                     trips.forEachIndexed { index, trip ->
@@ -872,40 +1041,65 @@ fun CommunityScreen(navController: NavController) {
                             Surface(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(vertical = 8.dp)
+                                    .padding(vertical = 10.dp)
                                     .clickable { navController.navigate(Screen.Collaboration.createRoute(trip.id)) },
-                                shape = RoundedCornerShape(20.dp),
-                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
-                                border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f))
+                                shape = RoundedCornerShape(24.dp),
+                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f), // Theme-adaptive card
+                                border = androidx.compose.foundation.BorderStroke(
+                                    1.dp, 
+                                    MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f)
+                                )
                             ) {
                                 Row(
-                                    modifier = Modifier.padding(16.dp),
+                                    modifier = Modifier.padding(20.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Box(
                                         modifier = Modifier
-                                            .size(56.dp)
-                                            .clip(RoundedCornerShape(16.dp))
-                                            .background(MaterialTheme.colorScheme.primaryContainer)
+                                            .size(64.dp)
+                                            .clip(RoundedCornerShape(18.dp))
+                                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)),
+                                        contentAlignment = Alignment.Center
                                     ) {
-                                        // A small placeholder or the actual image could go here, for now an icon
-                                        Icon(Icons.Default.FlightTakeoff, null, modifier = Modifier.align(Alignment.Center), tint = MaterialTheme.colorScheme.primary)
+                                        Icon(
+                                            Icons.Default.FlightTakeoff, 
+                                            null, 
+                                            modifier = Modifier.size(28.dp), 
+                                            tint = MaterialTheme.colorScheme.primary
+                                        )
                                     }
-                                    Spacer(Modifier.width(16.dp))
+                                    Spacer(Modifier.width(20.dp))
                                     Column(modifier = Modifier.weight(1f)) {
-                                        Text(trip.destination, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                                        Text("${MockDataProvider.members.filter { it.tripId == trip.id }.size} Members • ${trip.date}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.secondary)
+                                        Text(
+                                            trip.destination, 
+                                            style = MaterialTheme.typography.titleLarge, 
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                        Spacer(Modifier.height(4.dp))
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Icon(Icons.Default.Groups, null, modifier = Modifier.size(14.dp), tint = MaterialTheme.colorScheme.secondary)
+                                            Spacer(Modifier.width(4.dp))
+                                            Text(
+                                                "${MockDataProvider.members.filter { it.tripId == trip.id }.size} Members", 
+                                                style = MaterialTheme.typography.labelSmall, 
+                                                color = MaterialTheme.colorScheme.secondary
+                                            )
+                                            Spacer(Modifier.width(12.dp))
+                                            Icon(Icons.Default.Event, null, modifier = Modifier.size(14.dp), tint = MaterialTheme.colorScheme.secondary)
+                                            Spacer(Modifier.width(4.dp))
+                                            Text(
+                                                trip.date, 
+                                                style = MaterialTheme.typography.labelSmall, 
+                                                color = MaterialTheme.colorScheme.secondary
+                                            )
+                                        }
                                     }
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        IconButton(onClick = { /* open collaboration */ navController.navigate(Screen.Collaboration.createRoute(trip.id)) }) {
-                                            Icon(Icons.Default.ChevronRight, null, tint = MaterialTheme.colorScheme.primary)
-                                        }
-                                        IconButton(onClick = { 
-                                            // open invite dialog for this trip
-                                            // set states below via mutableState
-                                        }) {
-                                            Icon(Icons.Default.PersonAdd, null, tint = MaterialTheme.colorScheme.primary)
-                                        }
+                                    IconButton(
+                                        onClick = { navController.navigate(Screen.Collaboration.createRoute(trip.id)) },
+                                        modifier = Modifier.background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.05f), CircleShape)
+                                    ) {
+                                        Icon(Icons.Default.ChevronRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                                     }
                                 }
                             }
@@ -948,20 +1142,6 @@ fun CommunityScreen(navController: NavController) {
 
     // We need to trigger invite for a specific trip when pressing PersonAdd; replace the placeholder above with this local logic.
     // For simplicity, add a floating invite button that targets the first trip if none selected.
-    Box(modifier = Modifier.fillMaxSize()) {
-        FloatingActionButton(
-            onClick = {
-                inviteTripId = trips.firstOrNull()?.id ?: ""
-                showInviteDialog = true
-            },
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .padding(24.dp),
-            containerColor = MaterialTheme.colorScheme.primary
-        ) {
-            Icon(Icons.Default.PersonAdd, null, tint = Color.Black)
-        }
-    }
 
     if (showInviteDialog) {
         var name by remember { mutableStateOf("") }
